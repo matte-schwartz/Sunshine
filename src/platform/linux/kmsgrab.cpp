@@ -689,9 +689,12 @@ namespace platf {
                 case DRM_MODE_ROTATE_90:
                 case DRM_MODE_ROTATE_180:
                   BOOST_LOG(warning) << "Panel orientation is unsupported, screen capture may not work correctly.";
+                  BOOST_LOG(warning) << "Legion Go linux panel support mod.";
+                  width = viewport.height;
+                  height = viewport.width;
                   break;
               }
-
+              
               offset_x = viewport.offset_x;
               offset_y = viewport.offset_y;
             }
