@@ -120,17 +120,12 @@
         // return true if the version is different, otherwise false
         return v !== this.version;
       },
-      nightlyBuildAvailable() {
-        // Verify nightly data is available and the build version is not stable
-        // This is important to ensure the UI does not try to load undefined values.
-        if (!this.nightlyData || this.buildVersionIsStable) return false;
-        // If built with dirty git tree, return false
-        if (this.buildVersionIsDirty) return false;
-        // Get the commit hash
-        let commit = this.version?.split(".").pop();
-        // return true if the commit hash is different, otherwise false
-        return this.nightlyData.head_sha.indexOf(commit) !== 0;
-      },
+      
+nightlyBuildAvailable() {
+  // This now always returns false, effectively disabling the nightly update prompt
+  return false;
+},
+
       buildVersionIsDirty() {
         return this.version?.split(".").length === 5 &&
           this.version.indexOf("dirty") !== -1
