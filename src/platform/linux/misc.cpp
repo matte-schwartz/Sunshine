@@ -100,22 +100,54 @@ namespace platf {
 
   fs::path
   appdata() {
+    bool found = false;
+    bool migrate_config = true;
     const char *dir;
+    const char *homedir;
+    fs::path config_path;
+
+    // Get the home directory
+    if ((homedir = getenv("HOME")) == nullptr || strlen(homedir) == 0) {
+      // If HOME is empty or not set, use the current user's home directory
+      homedir = getpwuid(geteuid())->pw_dir;
+    }
 
     // May be set if running under a systemd service with the ConfigurationDirectory= option set.
-    if ((dir = getenv("CONFIGURATION_DIRECTORY")) != nullptr) {
-      return fs::path { dir } / "sunshine"sv;
+    if ((dir = getenv("CONFIGURATION_DIRECTORY")) != nullptr && strlen(dir) > 0) {
+      found = true;
+      config_path = fs::path(dir) / "sunshine"sv;
     }
     // Otherwise, follow the XDG base directory specification:
     // https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
-    if ((dir = getenv("XDG_CONFIG_HOME")) != nullptr) {
-      return fs::path { dir } / "sunshine"sv;
+    if (!found && (dir = getenv("XDG_CONFIG_HOME")) != nullptr && strlen(dir) > 0) {
+      found = true;
+      config_path = fs::path(dir) / "sunshine"sv;
     }
-    if ((dir = getenv("HOME")) == nullptr) {
-      dir = getpwuid(geteuid())->pw_dir;
+    // As a last resort, use the home directory
+    if (!found) {
+      migrate_config = false;
+      config_path = fs::path(homedir) / ".config/sunshine"sv;
     }
 
-    return fs::path { dir } / ".config/sunshine"sv;
+    // migrate from the old config location if necessary
+    if (migrate_config && found && getenv("SUNSHINE_MIGRATE_CONFIG") == "1"sv) {
+      fs::path old_config_path = fs::path(homedir) / ".config/sunshine"sv;
+      if (old_config_path != config_path && fs::exists(old_config_path)) {
+        if (!fs::exists(config_path)) {
+          BOOST_LOG(info) << "Migrating config from "sv << old_config_path << " to "sv << config_path;
+          std::error_code ec;
+          fs::rename(old_config_path, config_path, ec);
+          if (ec) {
+            return old_config_path;
+          }
+        }
+        else {
+          BOOST_LOG(warning) << "Config exists in both "sv << old_config_path << " and "sv << config_path << ", using "sv << config_path << "... it is recommended to remove "sv << old_config_path;
+        }
+      }
+    }
+
+    return config_path;
   }
 
   std::string
@@ -836,27 +868,29 @@ namespace platf {
 #endif
 
 #ifdef SUNSHINE_BUILD_CUDA
-    if (config::video.capture.empty() || config::video.capture == "nvfbc") {
+    if ((config::video.capture.empty() && sources.none()) || config::video.capture == "nvfbc") {
       if (verify_nvfbc()) {
         sources[source::NVFBC] = true;
       }
     }
 #endif
 #ifdef SUNSHINE_BUILD_WAYLAND
-    if (config::video.capture.empty() || config::video.capture == "wlr") {
+    if ((config::video.capture.empty() && sources.none()) || config::video.capture == "wlr") {
       if (verify_wl()) {
         sources[source::WAYLAND] = true;
       }
     }
 #endif
 #ifdef SUNSHINE_BUILD_DRM
-    if (config::video.capture.empty() || config::video.capture == "kms") {
+    if ((config::video.capture.empty() && sources.none()) || config::video.capture == "kms") {
       if (verify_kms()) {
         sources[source::KMS] = true;
       }
     }
 #endif
 #ifdef SUNSHINE_BUILD_X11
+    // We enumerate this capture backend regardless of other suitable sources,
+    // since it may be needed as a NvFBC fallback for software encoding on X11.
     if (config::video.capture.empty() || config::video.capture == "x11") {
       if (verify_x11()) {
         sources[source::X11] = true;

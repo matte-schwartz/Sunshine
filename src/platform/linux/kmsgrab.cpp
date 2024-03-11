@@ -145,9 +145,12 @@ namespace platf {
     };
 
     struct monitor_t {
+      // Connector attributes
       std::uint32_t type;
-
       std::uint32_t index;
+
+      // Monitor index in the global list
+      std::uint32_t monitor_index;
 
       platf::touch_port_t viewport;
     };
@@ -1240,8 +1243,13 @@ namespace platf {
         auto delta_width = std::min<uint32_t>(captured_cursor.src_w, std::max<int32_t>(0, screen_width - cursor_x)) - cursor_delta_x;
         for (auto y = 0; y < delta_height; ++y) {
           // Offset into the cursor image to skip drawing the parts of the cursor image that are off screen
-          auto cursor_begin = (uint32_t *) &captured_cursor.pixels[((y + cursor_delta_y) * captured_cursor.src_w + cursor_delta_x) * 4];
-          auto cursor_end = (uint32_t *) &captured_cursor.pixels[((y + cursor_delta_y) * captured_cursor.src_w + delta_width + cursor_delta_x) * 4];
+          //
+          // NB: We must access the elements via the data() function because cursor_end may point to the
+          // the first element beyond the valid range of the vector. Using vector's [] operator in that
+          // manner is undefined behavior (and triggers errors when using debug libc++), while doing the
+          // same with an array is fine.
+          auto cursor_begin = (uint32_t *) &captured_cursor.pixels.data()[((y + cursor_delta_y) * captured_cursor.src_w + cursor_delta_x) * 4];
+          auto cursor_end = (uint32_t *) &captured_cursor.pixels.data()[((y + cursor_delta_y) * captured_cursor.src_w + delta_width + cursor_delta_x) * 4];
 
           auto pixels_begin = &pixels[(y + cursor_y) * (img.row_pitch / img.pixel_pitch) + cursor_x];
 
@@ -1519,10 +1527,10 @@ namespace platf {
   correlate_to_wayland(std::vector<kms::card_descriptor_t> &cds) {
     auto monitors = wl::monitors();
 
+    BOOST_LOG(info) << "-------- Start of KMS monitor list --------"sv;
+
     for (auto &monitor : monitors) {
       std::string_view name = monitor->name;
-
-      BOOST_LOG(info) << name << ": "sv << monitor->description;
 
       // Try to convert names in the format:
       // {type}-{index}
@@ -1556,6 +1564,7 @@ namespace platf {
                 << monitor->viewport.width << 'x' << monitor->viewport.height;
             }
 
+            BOOST_LOG(info) << "Monitor " << monitor_descriptor.monitor_index << " is "sv << name << ": "sv << monitor->description;
             goto break_for_loop;
           }
         }
@@ -1564,6 +1573,8 @@ namespace platf {
 
       BOOST_LOG(verbose) << "Reduced to name: "sv << name << ": "sv << index;
     }
+
+    BOOST_LOG(info) << "--------- End of KMS monitor list ---------"sv;
   }
 
   // A list of names of displays accepted as display_name
@@ -1640,6 +1651,7 @@ namespace platf {
             (int) crtc->width,
             (int) crtc->height,
           };
+          it->second.monitor_index = count;
         }
 
         kms::env_width = std::max(kms::env_width, (int) (crtc->x + crtc->width));
