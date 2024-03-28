@@ -1,4 +1,4 @@
-%define commit 06ea386777933b3f594c225ad215a5d65bc25901
+%define commit c53920a073e21ef1e4d5a673dddb85cc29c88391
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 
 %global build_timestamp %(date +"%Y%m%d")
@@ -94,7 +94,6 @@ cd %{_builddir}/Sunshine/build
 # Configure cmake with CUDA paths and other options
 cmake .. \
 -DCMAKE_BUILD_TYPE=Release \
--DBUILD_WERROR=ON \
 -DCMAKE_INSTALL_PREFIX=%{_prefix} \
 %if 0%{?fedora} == 39
 -DCMAKE_CUDA_COMPILER=$NVCC_PATH \
