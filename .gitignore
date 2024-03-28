@@ -17,3 +17,4 @@ package-lock.json
 *.mo
 *.pot
 packaging/linux/Fedora/sunshine-0.22.2-1.git.20240328.aad3927.fc39.src.rpm
+packaging/linux/Fedora/sunshine-0.22.2-1.git.20240328.06ea386.fc39.src.rpm
