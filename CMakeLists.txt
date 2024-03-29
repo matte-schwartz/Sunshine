@@ -54,6 +54,3 @@ include(${CMAKE_MODULE_PATH}/targets/common.cmake)
 
 # packaging
 include(${CMAKE_MODULE_PATH}/packaging/common.cmake)
-
-# setup -fPIE for Fedora build
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
